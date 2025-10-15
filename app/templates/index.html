@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal Assistant Stream</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f5f5f5;
+        }
+        #chat {
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background-color: #ffffff;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 10px 15px;
+            border-radius: 20px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user {
+            background-color: #0d6efd;
+            color: white;
+            margin-left: auto;
+        }
+        .bot {
+            background-color: #e9ecef;
+            color: #212529;
+            margin-right: auto;
+        }
+        #uploadStatus {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<div class="container py-4">
+    <h2 class="mb-4 text-center">Legal Assistant</h2>
+
+    <div class="mb-3">
+        <div id="chat"></div>
+    </div>
+
+    <div class="input-group mb-3">
+        <input type="text" id="question" class="form-control" placeholder="Введите вопрос">
+        <button class="btn btn-primary" onclick="sendQuestion()">Отправить</button>
+    </div>
+
+    <h4 class="mt-4">Загрузка документа</h4>
+    <div class="input-group mb-3">
+        <input type="file" id="fileInput" class="form-control">
+        <input type="text" id="title" class="form-control" placeholder="Название документа">
+        <button class="btn btn-success" onclick="uploadFile()">Загрузить</button>
+    </div>
+    <div id="uploadStatus" class="text-muted"></div>
+</div>
+
+<script>
+let ws;
+let botMessageBuffer = ""; 
+function addMessage(text, sender="bot") {
+    const chat = document.getElementById("chat");
+    const msg = document.createElement("div");
+    msg.className = "message " + sender;
+    msg.textContent = text;
+    chat.appendChild(msg);
+    chat.scrollTop = chat.scrollHeight;
+    return msg;
+}
+
+function sendQuestion() {
+    const question = document.getElementById("question").value.trim();
+    if (!question) return;
+
+    addMessage(question, "user");
+
+    ws = new WebSocket("ws://127.0.0.1:8005/ws/query");
+    botMessageBuffer = "";
+    let botMsgDiv;
+
+    ws.onopen = () => {
+        ws.send(JSON.stringify({question}));
+        botMsgDiv = addMessage("", "bot");
+    };
+
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.text) {
+            botMessageBuffer += data.text;
+            botMsgDiv.textContent = botMessageBuffer;
+        }
+
+        if (data.done) {
+            console.log("Генерация завершена");
+        }
+
+        if (data.error) {
+            botMsgDiv.textContent = "Ошибка: " + data.error;
+        }
+    };
+
+    ws.onclose = () => console.log("WebSocket закрыт");
+    document.getElementById("question").value = "";
+}
+
+async function uploadFile() {
+    const fileInput = document.getElementById("fileInput");
+    const title = document.getElementById("title").value.trim();
+    const statusDiv = document.getElementById("uploadStatus");
+
+    if (!fileInput.files.length) {
+        alert("Выберите файл!");
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("title", title);
+
+    statusDiv.textContent = "Загрузка...";
+
+    try {
+        const resp = await fetch("/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const result = await resp.json();
+        if (resp.ok) {
+            statusDiv.textContent = `Файл загружен! Document ID: ${result.document_id}, чанков: ${result.chunks}`;
+        } else {
+            statusDiv.textContent = `Ошибка: ${result.detail || "неизвестная ошибка"}`;
+        }
+    } catch (err) {
+        statusDiv.textContent = `Ошибка: ${err.message}`;
+    }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+venv/
+env/
+*.egg-info/
+*.egg
+*.log
+
+# Jupyter
+.ipynb_checkpoints
+
+# VSCode / IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Mac/Linux
+.DS_Store
+*.swp
+*~
+
+# Сборка/дистрибутивы
+build/
+dist/
+
+# Любые мусорные .py файлы в корне
+temp_*.py
+test_*.py
+debug_*.py
+sample_*.docx
+sample_*.pdf
